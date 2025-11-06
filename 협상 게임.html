@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>맞춤형 협상 전략 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .dialogue-box {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 0.75rem;
+        }
+        .player-turn {
+            background-color: #e0f2fe; /* Light blue */
+            border-bottom-left-radius: 0 !important;
+            border-top-right-radius: 0.75rem;
+        }
+        .opponent-turn {
+            background-color: #fee2e2; /* Light red/pink */
+            border-bottom-right-radius: 0 !important;
+            border-top-left-radius: 0.75rem;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            transition: border-color 0.15s;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+
+    <div id="app" class="bg-white shadow-2xl rounded-xl max-w-4xl w-full p-6 md:p-10 border-t-4 border-indigo-600">
+        <h1 class="3xl font-bold text-gray-900 mb-2 text-center">🤝 맞춤형 협상 전략 시뮬레이터</h1>
+        <p class="text-center text-sm text-gray-500 mb-6">시나리오를 직접 설정하고 협상 이론을 적용해 보세요.</p>
+
+        <!-- Configuration View -->
+        <div id="config-view" class="space-y-6">
+            <h2 class="text-xl font-semibold text-gray-700 border-b pb-2">시나리오 설정</h2>
+            
+            <div class="input-group">
+                <label for="scenario-title">1. 협상 의제/상황 (예: 동아리 공간 분쟁)</label>
+                <input type="text" id="scenario-title" placeholder="필수: 협상할 주요 안건을 입력하세요." value="금요일 저녁 대강당 사용권">
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Player Config -->
+                <div class="p-4 border border-indigo-200 rounded-lg bg-indigo-50 space-y-4">
+                    <h3 class="font-bold text-lg text-indigo-700">나 (플레이어) 설정</h3>
+                    <div class="input-group">
+                        <label for="player-position">입장 (Position)</label>
+                        <input type="text" id="player-position" placeholder="내가 드러낸 요구 (예: 금요일 저녁 대강당 사용)" value="금요일 저녁 대강당 사용">
+                    </div>
+                    <div class="input-group">
+                        <label for="player-motive">동기 (Motive/근원적 이해)</label>
+                        <textarea id="player-motive" rows="2" placeholder="이 입장을 가지게 된 근본적인 이유 (예: 홍보를 위한 가시성 확보)">신입 부원 모집을 위한 가시성이 높은 넓은 공간 필요 (홍보/성장)</textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="player-batna">복안 (BATNA)</label>
+                        <input type="text" id="player-batna" placeholder="합의 결렬 시 최선의 대안 (예: 지하 소강의실 사용)" value="지하 소강의실 사용 (홍보 효과 대폭 감소)">
+                    </div>
+                </div>
+
+                <!-- Opponent Config -->
+                <div class="p-4 border border-red-200 rounded-lg bg-red-50 space-y-4">
+                    <h3 class="font-bold text-lg text-red-700">상대방 (Opponent) 설정</h3>
+                    <div class="input-group">
+                        <label for="opponent-name">상대방 이름/단체</label>
+                        <input type="text" id="opponent-name" placeholder="상대방의 명칭 (예: 필름 동아리 회장)" value="영상 제작 동아리 '필름' 회장">
+                    </div>
+                    <div class="input-group">
+                        <label for="opponent-position">입장 (Position)</label>
+                        <input type="text" id="opponent-position" placeholder="상대방이 드러낸 요구 (예: 금요일 저녁 대강당 사용)" value="금요일 저녁 대강당 사용">
+                    </div>
+                    <div class="input-group">
+                        <label for="opponent-motive">동기 (Motive/근원적 이해)</label>
+                        <textarea id="opponent-motive" rows="2" placeholder="상대방이 이 입장을 가지게 된 근본적인 이유 (예: 집중을 위한 방음 공간 확보)">영상 촬영 시 소음이 없는 넓은 공간이 필수적임 (집중/완성도)</textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="opponent-batna">복안 (BATNA)</label>
+                        <input type="text" id="opponent-batna" placeholder="합의 결렬 시 상대의 최선의 대안 (예: 일반 강의실 사용)" value="일반 강의실 사용 (촬영 구도 및 음향 문제 심각)">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startSimulation()" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition duration-200 shadow-md active:shadow-none active:translate-y-0.5">
+                협상 시뮬레이션 시작
+            </button>
+        </div>
+
+        <!-- Negotiation View (Hidden by default) -->
+        <div id="negotiation-view" class="hidden">
+            <!-- Scenario Description -->
+            <div id="scenario-display" class="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-lg mb-6">
+                <!-- Content will be injected by startSimulation() -->
+            </div>
+
+            <!-- Dialogue Area -->
+            <div id="dialogue" class="dialogue-box bg-gray-100 p-4 mb-6 space-y-3 shadow-inner">
+                <!-- Initial Message will be added by startSimulation() -->
+            </div>
+
+            <!-- Action Area -->
+            <div id="action-area" class="space-y-4">
+                <textarea id="player-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" placeholder="여기에 당신의 제안이나 질문을 입력하세요."></textarea>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="propose-btn" onclick="handleNegotiation('propose')" class="bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition duration-200 shadow-md active:shadow-none active:translate-y-0.5">
+                        제안/발언하기 (입력 내용 제출)
+                    </button>
+                    <button onclick="handleNegotiation('end')" class="bg-red-500 text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition duration-200 shadow-md active:shadow-none active:translate-y-0.5">
+                        협상 종료 및 합의 시도
+                    </button>
+                </div>
+                
+                <div class="mt-4 border-t pt-4">
+                    <p class="font-semibold text-gray-700 mb-2">전략적 발언 선택 (이론 적용):</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <button onclick="handleNegotiation('strategy', 'ask_motive')" class="strategy-btn bg-yellow-100 text-yellow-800 text-sm font-medium py-2 rounded-full hover:bg-yellow-200 transition duration-150 border border-yellow-300">
+                            동기(근원적 이해) 질문하기
+                        </button>
+                        <button onclick="handleNegotiation('strategy', 'pie_enlargement')" class="strategy-btn bg-green-100 text-green-800 text-sm font-medium py-2 rounded-full hover:bg-green-200 transition duration-150 border border-green-300">
+                            창의적 대안 (파이 키우기)
+                        </button>
+                        <button onclick="handleNegotiation('strategy', 'objective_criteria')" class="strategy-btn bg-blue-100 text-blue-800 text-sm font-medium py-2 rounded-full hover:bg-blue-200 transition duration-150 border border-blue-300">
+                            객관적 기준 제시
+                        </button>
+                        <button onclick="handleNegotiation('strategy', 'reveal_batna')" class="strategy-btn bg-purple-100 text-purple-800 text-sm font-medium py-2 rounded-full hover:bg-purple-200 transition duration-150 border border-purple-300">
+                            BATNA 간접 암시
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Opponent Info Hint -->
+            <p id="opponent_info_hint" class="mt-3 text-xs text-red-600 font-semibold hidden"></p>
+        </div>
+
+
+        <!-- Result Modal -->
+        <div id="result-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50" onclick="closeModal()">
+            <div class="bg-white rounded-xl max-w-2xl w-full p-8 shadow-2xl" onclick="event.stopPropagation()">
+                <h2 id="result-title" class="text-3xl font-bold mb-4 text-center text-indigo-700">협상 결과</h2>
+                <div id="result-content" class="text-gray-700 space-y-4">
+                    <!-- Dynamic content will be inserted here -->
+                </div>
+                <button onclick="window.location.reload()" class="mt-6 w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition duration-200">
+                    다시 시작하기
+                </button>
+            </div>
+        </div>
+        
+        <!-- Loading Spinner -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="flex flex-col items-center p-5 bg-white rounded-lg shadow-xl">
+                <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-3 text-gray-700 font-medium">AI 상대방이 답변을 생성하는 중입니다...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const dialogueEl = document.getElementById('dialogue');
+        const inputEl = document.getElementById('player-input');
+        const proposeBtnEl = document.getElementById('propose-btn');
+        const loadingOverlayEl = document.getElementById('loading-overlay');
+        const opponentInfoHintEl = document.getElementById('opponent_info_hint');
+        const configViewEl = document.getElementById('config-view');
+        const negotiationViewEl = document.getElementById('negotiation-view');
+        const scenarioDisplayEl = document.getElementById('scenario-display');
+
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        let SCENARIO = {}; // 사용자 입력으로 채워질 시나리오 데이터
+
+        // ====== 유틸리티 함수 (API 호출 및 백오프) ======
+
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function exponentialBackoffFetch(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429) { // 429: Too Many Requests (Retry)
+                        return response;
+                    }
+                    // Handle 429: Wait before retrying
+                } catch (error) {
+                    // Handle network or other errors: Wait before retrying
+                }
+
+                if (i < maxRetries - 1) {
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await sleep(delay);
+                }
+            }
+            throw new Error("API call failed after multiple retries.");
+        }
+
+
+        // ====== 1. 시뮬레이션 시작 및 설정 읽기 함수 ======
+        function startSimulation() {
+            const title = document.getElementById('scenario-title').value.trim();
+            const pPosition = document.getElementById('player-position').value.trim();
+            const pMotive = document.getElementById('player-motive').value.trim();
+            const pBatna = document.getElementById('player-batna').value.trim();
+            const oName = document.getElementById('opponent-name').value.trim();
+            const oPosition = document.getElementById('opponent-position').value.trim();
+            const oMotive = document.getElementById('opponent-motive').value.trim();
+            const oBatna = document.getElementById('opponent-batna').value.trim();
+
+            if (!title || !pPosition || !pMotive || !oPosition || !oMotive || !oName) {
+                // 이 경고 메시지는 한국어로 유지
+                alert('모든 필수 항목(의제, 입장, 동기, 상대방 이름)을 입력해야 시뮬레이션을 시작할 수 있습니다.');
+                return;
+            }
+
+            SCENARIO = {
+                title: title,
+                player: { position: pPosition, motive: pMotive, batna: pBatna },
+                opponent: { name: oName, position: oPosition, motive: oMotive, batna: oBatna }
+            };
+
+            // UI 전환
+            configViewEl.classList.add('hidden');
+            negotiationViewEl.classList.remove('hidden');
+
+            // 시나리오 디스플레이 업데이트
+            scenarioDisplayEl.innerHTML = `
+                <p class="font-semibold text-indigo-800 mb-2">📌 시나리오: ${SCENARIO.title}</p>
+                <p class="text-sm text-indigo-700">
+                    당신은 **${SCENARIO.player.position}**을(를) 원하며, **${SCENARIO.opponent.name}**은(는) **${SCENARIO.opponent.position}**을(를) 원합니다.
+                </p>
+                <div class="mt-3 text-xs text-indigo-600">
+                    <p><strong>- 우리 측 입장:</strong> ${SCENARIO.player.position}</p>
+                    <p><strong>- 우리 측 동기:</strong> ${SCENARIO.player.motive}</p>
+                    <p><strong>- 우리 측 BATNA:</strong> ${SCENARIO.player.batna || '없음'}</p>
+                </div>
+            `;
+
+            // 초기 대화 시작
+            addDialogue('opponent', `안녕하세요. ${SCENARIO.opponent.name}입니다. 저희의 입장(Position)은 **${SCENARIO.opponent.position}**입니다. 귀측의 입장을 먼저 말씀해 주시겠어요?`);
+        }
+
+
+        // ====== 2. 게임 상태 및 평가 변수 ======
+        let gameState = {
+            turn: 0,
+            dialogues: [],
+            baseScore: 0, // 기본 점수 (최대 100점 + 전략 보너스)
+            strategyUsed: {
+                ask_motive: 0, 
+                pie_enlargement: 0, 
+                objective_criteria: 0, 
+                reveal_batna: 0, 
+            },
+            opponentMotiveRevealed: false,
+            negotiationEndReason: null, // 'mutual_gain', 'compromise', 'win_lose', 'breakdown'
+            lastPlayerInput: '', // 최종 피드백을 위한 마지막 플레이어 입력 저장
+        };
+
+        // ====== 3. UI 렌더링 함수 ======
+
+        function addDialogue(sender, message, isStrategy = false) {
+            const dialogueItem = document.createElement('div');
+            
+            // Sender-specific styling
+            if (sender === 'player') {
+                dialogueItem.className = 'player-turn ml-auto w-11/12';
+                message = `<span class="font-bold text-indigo-700">나:</span> ${message}`;
+            } else if (sender === 'opponent') {
+                dialogueItem.className = 'opponent-turn mr-auto w-11/12';
+                message = `<span class="font-bold text-red-700">${SCENARIO.opponent.name}:</span> ${message}`;
+            } else { // System/Hint message
+                dialogueItem.className = 'bg-gray-200 mr-auto w-11/12';
+                message = `<span class="font-bold text-gray-700">${message}</span>`;
+            }
+            
+            dialogueItem.className += ' p-3 rounded-xl shadow-md transition duration-300 text-gray-800 space-y-1';
+
+            dialogueItem.innerHTML = message;
+
+            dialogueEl.appendChild(dialogueItem);
+            dialogueEl.scrollTop = dialogueEl.scrollHeight; // 자동 스크롤
+        }
+        
+        // ====== 4. LLM 기반 동적 응답 생성 함수 ======
+
+        async function generateAiResponse(playerText) {
+            
+            const systemPrompt = `
+                당신은 협상 시뮬레이션의 상대방인 '${SCENARIO.opponent.name}'입니다.
+                당신의 역할은 사용자가 협상 전략(동기 파악, 창의적 대안 등)을 사용하도록 유도하면서, 당신의 입장과 동기를 지키는 것입니다.
+                
+                # 협상 상황
+                - 의제: ${SCENARIO.title}
+                - 당신의 입장(Position): ${SCENARIO.opponent.position}
+                - 당신의 동기(Motive/근원적 이해): ${SCENARIO.opponent.motive}
+                - 상대방의 입장(Position): ${SCENARIO.player.position}
+                - 상대방의 동기(Motive/근원적 이해): ${SCENARIO.player.motive} (참고만 하세요)
+                
+                # 현재 협상 상태
+                - 상대방이 당신의 동기를 노출시켰는지(opponentMotiveRevealed): ${gameState.opponentMotiveRevealed ? '예' : '아니오'}
+
+                # 지침
+                1. 한국어로 자연스럽고 정중하게 답변하십시오.
+                2. 당신의 입장(${SCENARIO.opponent.position})을 관철하려고 노력하되, **호혜적 합의**를 목표로 한다는 톤을 유지하십시오.
+                3. 상대방의 제안이 당신의 동기(${SCENARIO.opponent.motive})를 충족시키는지 항상 고려하십시오.
+                4. 만약 상대방이 당신의 동기를 묻는다면(예: 왜 중요한가요?), 동기(${SCENARIO.opponent.motive})를 간접적이거나 부분적으로 언급하며 답변하십시오.
+                5. 답변은 간결하게 한두 문단으로 작성하십시오.
+            `;
+            
+            const userQuery = `다음은 사용자(플레이어)의 마지막 발언입니다. 이 발언에 대해 응답하십시오: "${playerText}"`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                loadingOverlayEl.classList.remove('hidden');
+                
+                const response = await exponentialBackoffFetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "죄송합니다. AI 상대방의 응답 생성에 문제가 발생했습니다. 다른 방식으로 질문해주시겠어요?";
+                
+                loadingOverlayEl.classList.add('hidden');
+                return text;
+
+            } catch (error) {
+                console.error("Gemini API call error:", error);
+                loadingOverlayEl.classList.add('hidden');
+                return "네트워크 오류 또는 API 호출 실패로 인해 AI 상대방의 응답 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+            }
+        }
+
+
+        // ====== 5. 협상 로직 (핵심) ======
+
+        async function handleNegotiation(actionType, strategyKey = null) {
+            proposeBtnEl.disabled = true; // 버튼 비활성화 (API 응답 중복 방지)
+
+            if (actionType === 'propose') {
+                const text = inputEl.value.trim();
+                if (!text) {
+                    proposeBtnEl.disabled = false;
+                    return;
+                }
+                
+                // 1. 플레이어 발언 추가
+                addDialogue('player', text);
+                gameState.lastPlayerInput = text; // 마지막 입력 저장
+                inputEl.value = '';
+                
+                // 2. 상대방 반응 처리
+                await processOpponentResponse(text);
+
+            } else if (actionType === 'strategy' && strategyKey) {
+                
+                // 1. 전략 사용 횟수 기록 (점수 부여는 여기서 진행)
+                gameState.strategyUsed[strategyKey]++;
+                
+                let hintMessage = '';
+
+                switch (strategyKey) {
+                    case 'ask_motive':
+                        hintMessage = `💡 <strong>힌트: 동기 접목 전략.</strong> 상대방의 입장을 직접적으로 공격하지 말고, '왜' 그들이 그 입장을 가지게 되었는지 **동기(Motive)**를 파악하는 질문을 입력하세요. (예: "그 요구가 귀측에 왜 가장 중요합니까?")`;
+                        
+                        // 동기 파악 성공 처리 (점수 부여)
+                        if (!gameState.opponentMotiveRevealed) {
+                            gameState.opponentMotiveRevealed = true;
+                            opponentInfoHintEl.classList.remove('hidden');
+                            opponentInfoHintEl.innerHTML = `⚠️ 상대방 동기(Motive) 힌트 공개: **${SCENARIO.opponent.motive}** 입니다. 이제 이 동기를 활용하여 창의적인 대안을 모색할 수 있습니다. (점수 +30)`;
+                            gameState.baseScore += 30; 
+                        }
+                        break;
+                    case 'pie_enlargement':
+                        hintMessage = `💡 <strong>힌트: 파이 키우기 전략.</strong> 상대방의 동기(${SCENARIO.opponent.motive})와 나의 동기(${SCENARIO.player.motive})를 모두 만족시킬 수 있는 **새로운 자원(시간, 공간 등)이나 대안**을 구체적으로 제시해야 합니다.`;
+                        if (gameState.strategyUsed.pie_enlargement === 1) gameState.baseScore += 50; 
+                        else gameState.baseScore += 10;
+                        gameState.negotiationEndReason = 'mutual_gain'; // 파이 키우기 전략을 사용하면 호혜적 합의 트랙으로 유도
+                        break;
+                    case 'objective_criteria':
+                        hintMessage = "💡 <strong>힌트: 객관적 기준 제시 전략.</strong> 감정적인 주장 대신, 합의의 정당성을 확보하기 위해 '객관적 기준'(예: 학교 규정, 과거 선례, 전문가 의견)을 따르자고 제안하세요.";
+                        gameState.baseScore += 10;
+                        break;
+                    case 'reveal_batna':
+                        hintMessage = `💡 <strong>힌트: BATNA 간접 암시 전략.</strong> 협상 결렬 시 우리 측의 복안(${SCENARIO.player.batna || '차선책'})이 불리하지 않음을 간접적으로 언급하여 협상의 지렛대로 활용해야 합니다.`;
+                        gameState.baseScore += 10;
+                        break;
+                }
+                
+                // 2. 힌트 메시지 출력
+                addDialogue('system', hintMessage);
+
+            } else if (actionType === 'end') {
+                showResult();
+            }
+            gameState.turn++;
+            proposeBtnEl.disabled = false; // 버튼 다시 활성화
+        }
+
+        async function processOpponentResponse(playerText) {
+            
+            const lowerText = playerText.toLowerCase();
+
+            let opponentResponse = null;
+
+            // 1. **핵심 전략 키워드 감지 (점수 및 상태 변경을 위해 고정 로직 유지)**
+            
+            // 1-1. 동기 파악 시도 (가장 중요한 긍정적 행동)
+            if (lowerText.includes('왜 중요') || lowerText.includes('이유가 무엇') || lowerText.includes('근본적인')) {
+                if (!gameState.opponentMotiveRevealed) {
+                    gameState.opponentMotiveRevealed = true;
+                    opponentInfoHintEl.classList.remove('hidden');
+                    opponentInfoHintEl.innerHTML = `⚠️ 상대방 동기(Motive) 힌트 공개: **${SCENARIO.opponent.motive}** 입니다. 이제 이 동기를 활용하여 창의적인 대안을 모색할 수 있습니다. (점수 +30)`;
+                    gameState.baseScore += 30; 
+                    opponentResponse = `귀측의 깊은 질문에 감사드립니다. 저희가 ${SCENARIO.opponent.position}을(를) 요구하는 근본적인 이유는 **${SCENARIO.opponent.motive}** 때문입니다.`;
+                }
+                // 동기가 이미 노출되었다면, LLM에게 넘겨 자연스러운 대화를 유도합니다.
+            }
+            
+            // 1-2. 상호 양보/타협 시도
+            else if (lowerText.includes('양보') || lowerText.includes('나눠') || lowerText.includes('타협') || lowerText.includes('절반')) {
+                gameState.negotiationEndReason = 'compromise';
+                // LLM에게 넘겨 자연스러운 응답을 받되, 협상 결론 트랙임을 AI에게 알려줍니다.
+            }
+
+            // 1-3. BATNA/객관적 기준 언급 (협상의 지렛대/정당성)
+            else if (lowerText.includes('batna') || lowerText.includes('복안') || lowerText.includes('규정') || lowerText.includes('선례') || lowerText.includes('기준') || lowerText.includes('객관적')) {
+                // LLM에게 넘겨 자연스러운 응답을 받습니다.
+            }
+            
+            // 1-4. 창의적 대안 제시 (Win-Win 유도)
+            else if (lowerText.includes('새로운 대안') || lowerText.includes('둘 다 만족') || lowerText.includes('파이 키우기') || lowerText.includes('통합적') || lowerText.includes('창의적')) {
+                gameState.negotiationEndReason = 'mutual_gain';
+                // LLM에게 넘겨 자연스러운 응답을 받되, 협상 결론 트랙임을 AI에게 알려줍니다.
+            }
+            
+            // 2. **LLM에게 동적 응답 요청**
+            if (opponentResponse === null) {
+                opponentResponse = await generateAiResponse(playerText);
+            }
+            
+            // 3. AI 응답 추가
+            addDialogue('opponent', opponentResponse);
+        }
+
+        // ====== 6. 결과 및 평가 함수 ======
+
+        // 최종 발언 피드백 생성 함수
+        function getFeedbackOnInput(text, reason) {
+            const lowerText = text.toLowerCase();
+            let feedback = "귀하의 발언은 협상의 흐름을 원만하게 유지하는 데 기여했습니다. (일반적인 발언)";
+
+            if (reason === 'mutual_gain') {
+                if (lowerText.includes('새로운 대안') || lowerText.includes('둘 다 만족') || lowerText.includes('파이 키우기') || lowerText.includes('창의적') || lowerText.includes('통합적')) {
+                    feedback = "마지막 발언에서 **'통합적 협상'**의 핵심인 창의적 대안을 효과적으로 제시하여 호혜적 합의를 이끌어냈습니다. 훌륭합니다! 양측의 동기 충족에 성공했습니다.";
+                } else {
+                    feedback = "호혜적 합의에 도달했으나, 마지막 발언은 다소 일반적이었습니다. 구체적인 '파이 키우기' 아이디어를 제시했다면 더욱 좋았을 것입니다.";
+                }
+            } else if (reason === 'compromise') {
+                 if (lowerText.includes('양보') || lowerText.includes('나눠') || lowerText.includes('절반') || lowerText.includes('타협')) {
+                    feedback = "마지막 발언에서 **'상호 양보 전략'**을 명확히 제시하여 교착 상태를 해소하고 합의에 이르렀습니다. 실용적이며 관계를 유지하는 좋은 접근이었습니다.";
+                } else if (lowerText.includes(SCENARIO.player.position.toLowerCase())) {
+                    feedback = "협상은 상호 양보로 마무리되었으나, 마지막 발언은 여전히 **'입장 고수'**에 치우쳤습니다. 합의점을 더 부드럽게 제시할 수 있었습니다.";
+                } else {
+                    feedback = "상호 양보로 끝났습니다. 마지막 발언은 대화의 종료를 알리는 역할만 했으며, 합의 내용을 정리하는 발언을 했다면 더 좋았을 것입니다.";
+                }
+            } else if (reason === 'breakdown') {
+                if (lowerText.includes(SCENARIO.player.position.toLowerCase()) || lowerText.includes('해야 합니다')) {
+                    feedback = "협상 결렬의 원인 중 하나는 **'입장 고수'**였습니다. 마지막까지 상대방의 동기를 이해하려는 노력이 부족했습니다.";
+                } else if (lowerText.includes('감정적') || lowerText.includes('비난')) {
+                    feedback = "협상 막바지에 감정적인 언어를 사용하여 관계를 악화시키고 결렬을 막지 못했습니다. 객관성을 유지해야 합니다.";
+                } else {
+                    feedback = "협상을 결렬시킨 마지막 발언은 구체적인 대안이 부족했습니다. 복안(BATNA)을 활용할지, 아니면 양보할지 명확한 전략 제시가 필요했습니다.";
+                }
+            }
+            return feedback;
+        }
+
+        function showResult() {
+            // 협상 종료 처리
+            let finalScore = gameState.baseScore;
+            let finalAgreement = '';
+            let achievementLevel = '';
+            let strategyBonus = 0;
+            const resultContentEl = document.getElementById('result-content');
+            resultContentEl.innerHTML = '';
+            
+            // 1. 전략 보너스 계산 (최대 200점)
+            if (gameState.strategyUsed.ask_motive > 0) strategyBonus += 50; 
+            if (gameState.strategyUsed.pie_enlargement > 0) strategyBonus += 100; 
+            if (gameState.strategyUsed.objective_criteria > 0) strategyBonus += 20;
+            if (gameState.strategyUsed.reveal_batna > 0) strategyBonus += 30;
+
+            finalScore += strategyBonus;
+
+            // 2. 최종 합의안 결정 (ZOPA 영역 판단)
+            if (gameState.negotiationEndReason === 'mutual_gain' && finalScore >= 180) {
+                // 협동 전략 (성과↑ 관계↑) - WIn-Win
+                finalAgreement = `양측의 근원적 동기(${SCENARIO.player.motive}와 ${SCENARIO.opponent.motive})를 모두 충족시키는 창의적인 대안을 도출하여 합의했습니다. (예: 시간을 쪼개거나, 새로운 자원(공간/시간)을 확보)`;
+                achievementLevel = '호혜적 협상 마스터 (S)';
+                finalScore += 50; 
+            } else if (gameState.negotiationEndReason === 'compromise' && finalScore >= 100) {
+                // 상호 양보 전략 (성과 ↔ 관계 ↔) - Compromise
+                finalAgreement = `입장(${SCENARIO.player.position}과 ${SCENARIO.opponent.position})을 시간이나 공간을 분할하는 방식으로 상호 양보하여 합의했습니다. (예: 일주일씩 번갈아 사용)`;
+                achievementLevel = '통합적 협상가 (A)';
+            } else if (finalScore >= 50 && gameState.strategyUsed.reveal_batna > 0) {
+                // 투쟁 전략 또는 단순 타협 (성과 ↑ or ↓, 관계 ↓) - Win-Lose
+                finalAgreement = `귀측의 복안(${SCENARIO.opponent.batna || '상대 복안'})과 우리 측의 복안(${SCENARIO.player.batna || '우리 복안'}) 중 덜 불리한 쪽을 선택하거나, 포기에 대한 보상을 받는 선에서 합의했습니다.`;
+                achievementLevel = '단기적 이익 추구 (B)';
+            } else {
+                // 회피/파국 전략 (성과↓ 관계↓) - Breakdown
+                finalAgreement = `합의에 이르지 못하고 협상이 파국에 이르렀습니다. 양측 모두 불리한 복안(${SCENARIO.player.batna || '우리 복안'}, ${SCENARIO.opponent.batna || '상대 복안'})을 강제로 이행해야 합니다.`;
+                achievementLevel = '협상 실패 (F)';
+                finalScore = 0;
+            }
+
+            // 3. 결과 모달 내용 구성
+            const totalScore = Math.min(Math.round(finalScore), 300); // 점수 상한선 300
+            const finalInputFeedback = getFeedbackOnInput(gameState.lastPlayerInput, gameState.negotiationEndReason || 'breakdown'); // 종료 사유가 없으면 결렬로 간주
+            
+            resultContentEl.innerHTML += `
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-bold text-xl text-indigo-600 mb-2">🏆 최종 성취도: ${achievementLevel}</h3>
+                    <p class="text-3xl font-extrabold text-center text-red-500 my-4">${totalScore}점 / 300점</p>
+                </div>
+
+                <div class="space-y-2">
+                    <p><strong class="text-indigo-600">협상 의제:</strong> ${SCENARIO.title}</p>
+                    <p><strong class="text-indigo-600">최종 합의안:</strong> ${finalAgreement}</p>
+                </div>
+                
+                <h3 class="font-bold text-lg text-gray-800 mt-4 border-b pb-1">🗣️ 최종 발언에 대한 피드백</h3>
+                <p class="p-3 bg-yellow-50 rounded-lg text-sm italic border-l-4 border-yellow-400">${finalInputFeedback}</p>
+
+                <h3 class="font-bold text-lg text-gray-800 mt-4 border-b pb-1">이론 기반 평가</h3>
+                <ul class="list-disc pl-5 text-sm space-y-2">
+                    <li class="${gameState.opponentMotiveRevealed ? 'text-green-700' : 'text-red-500'}">
+                        <strong>동기(근원적 이해) 파악:</strong> ${gameState.opponentMotiveRevealed ? '성공 (상대 동기 파악 완료: ' + SCENARIO.opponent.motive + ')' : '미흡 (표면적 입장(Position)에만 집중)'}
+                    </li>
+                    <li class="${gameState.strategyUsed.pie_enlargement > 0 ? 'text-green-700' : 'text-red-500'}">
+                        <strong>창의적 대안(파이 키우기):</strong> ${gameState.strategyUsed.pie_enlargement > 0 ? '적극적 활용 (자원 확대 시도)' : '활용 부족 (제로섬 게임에 머무름)'}
+                    </li>
+                    <li class="${gameState.strategyUsed.objective_criteria > 0 ? 'text-green-700' : 'text-red-500'}">
+                        <strong>객관적 기준 제시:</strong> ${gameState.strategyUsed.objective_criteria > 0 ? '적절히 활용 (합의의 정당성 확보)' : '활용 부족 (주관적 요구에 의존)'}
+                    </li>
+                    <li>
+                        <strong>총 전략 활용:</strong> 총 전략 보너스 ${strategyBonus}점 획득 (총 ${gameState.turn}회 시도).
+                    </li>
+                </ul>
+            `;
+            
+            document.getElementById('result-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('result-modal').classList.add('hidden');
+        }
+
+        // 초기 시작 시, 설정 화면의 기본값을 채워 넣습니다.
+        document.addEventListener('DOMContentLoaded', () => {
+            // 기본값 설정은 HTML 내부에 이미 완료됨.
+        });
+
+    </script>
+</body>
+</html>
